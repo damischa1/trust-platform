@@ -39,6 +39,36 @@ use deploy::{apply_deploy, apply_rollback, DeployRequest};
 use ide::{IdeError, IdeRole, WebIdeFrontendTelemetry, WebIdeState};
 use pairing::PairingStore;
 
+/// Channel-based reader for SSE streaming responses.
+struct SseChannelReader {
+    rx: std::sync::mpsc::Receiver<String>,
+    pending: Vec<u8>,
+    pos: usize,
+}
+
+impl std::io::Read for SseChannelReader {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if self.pos < self.pending.len() {
+            let to_copy = (self.pending.len() - self.pos).min(buf.len());
+            buf[..to_copy].copy_from_slice(&self.pending[self.pos..self.pos + to_copy]);
+            self.pos += to_copy;
+            if self.pos >= self.pending.len() {
+                self.pending.clear();
+                self.pos = 0;
+            }
+            return Ok(to_copy);
+        }
+        match self.rx.recv() {
+            Ok(msg) => {
+                self.pending = msg.into_bytes();
+                self.pos = 0;
+                self.read(buf)
+            }
+            Err(_) => Ok(0),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct SetupApplyRequest {
     #[serde(alias = "bundle_path")]
@@ -239,6 +269,9 @@ const HMI_CSS: &str = include_str!("web/ui/hmi.css");
 const IDE_HTML: &str = include_str!("web/ui/ide.html");
 const IDE_CSS: &str = include_str!("web/ui/ide.css");
 const IDE_JS: &str = include_str!("web/ui/ide.js");
+const EPEC_HTML: &str = include_str!("web/ui/epec.html");
+const EPEC_JS: &str = include_str!("web/ui/epec.js");
+const EPEC_CSS: &str = include_str!("web/ui/epec.css");
 const IDE_MONACO_BUNDLE_JS: &str = include_str!("web/ui/assets/ide-monaco.20260215.js");
 const IDE_MONACO_BUNDLE_CSS: &str = include_str!("web/ui/assets/ide-monaco.20260215.css");
 const IDE_LOGO_SVG: &str = include_str!("web/ui/assets/logo.svg");
@@ -639,6 +672,95 @@ fn apply_setup(
     }
 
     Ok("✓ Setup applied. Restart the runtime to load the new configuration.".to_string())
+}
+
+#[derive(Debug, Deserialize)]
+struct EpecWriteRequest {
+    name: String,
+    value: serde_json::Value,
+}
+
+fn epec_globals_snapshot(state: &ControlState) -> serde_json::Value {
+    use crate::debug::dap::format_value;
+    use crate::value::Value;
+
+    let snapshot = crate::control::load_runtime_snapshot(state);
+    let connected = snapshot.is_some();
+    let timestamp_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    let globals = if let Some(snap) = snapshot.as_ref() {
+        snap.storage
+            .globals()
+            .iter()
+            .filter(|(_, v)| !matches!(v, Value::Instance(_)))
+            .map(|(name, value)| {
+                let type_name = match value {
+                    Value::Bool(_) => "BOOL",
+                    Value::SInt(_) | Value::Int(_) | Value::DInt(_) | Value::LInt(_) => "INT",
+                    Value::USInt(_) | Value::UInt(_) | Value::UDInt(_) | Value::ULInt(_) => "UINT",
+                    Value::Real(_) | Value::LReal(_) => "REAL",
+                    Value::String(_) => "STRING",
+                    Value::WString(_) => "WSTRING",
+                    Value::Byte(_) | Value::Word(_) | Value::DWord(_) | Value::LWord(_) => "WORD",
+                    Value::Time(_) | Value::LTime(_) => "TIME",
+                    Value::Date(_) | Value::LDate(_) => "DATE",
+                    Value::Tod(_) | Value::LTod(_) => "TIME_OF_DAY",
+                    Value::Dt(_) | Value::Ldt(_) => "DATE_AND_TIME",
+                    Value::Array(_) => "ARRAY",
+                    Value::Struct(s) => s.type_name.as_str(),
+                    Value::Enum(e) => e.type_name.as_str(),
+                    _ => "ANY",
+                };
+                json!({
+                    "name": name.as_str(),
+                    "value": format_value(value),
+                    "type": type_name,
+                })
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+
+    json!({
+        "globals": globals,
+        "connected": connected,
+        "timestamp_ms": timestamp_ms,
+    })
+}
+
+fn epec_parse_write_value(raw: &serde_json::Value) -> Option<crate::value::Value> {
+    use crate::value::Value;
+    match raw {
+        serde_json::Value::Bool(b) => Some(Value::Bool(*b)),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Some(Value::DInt(i as i32))
+            } else if let Some(f) = n.as_f64() {
+                Some(Value::LReal(f))
+            } else {
+                None
+            }
+        }
+        serde_json::Value::String(s) => {
+            let upper = s.trim().to_ascii_uppercase();
+            if upper == "TRUE" {
+                Some(Value::Bool(true))
+            } else if upper == "FALSE" {
+                Some(Value::Bool(false))
+            } else if let Ok(i) = s.trim().parse::<i32>() {
+                Some(Value::DInt(i))
+            } else if let Ok(f) = s.trim().parse::<f64>() {
+                Some(Value::LReal(f))
+            } else {
+                Some(Value::String(smol_str::SmolStr::new(s)))
+            }
+        }
+        _ => None,
+    }
 }
 
 pub struct WebServer {
@@ -2909,6 +3031,135 @@ pub fn start_web_server(
                 let response = Response::from_string(body)
                     .with_header(Header::from_bytes("Content-Type", "application/json").unwrap());
                 let _ = request.respond(response);
+                continue;
+            }
+            // ── EPEC Globals UI ────────────────────────────────────────────
+            if method == Method::Get && (url == "/epec" || url == "/epec/") {
+                let response = Response::from_string(EPEC_HTML)
+                    .with_header(Header::from_bytes("Content-Type", "text/html").unwrap())
+                    .with_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
+                let _ = request.respond(response);
+                continue;
+            }
+            if method == Method::Get && url == "/epec/epec.js" {
+                let response = Response::from_string(EPEC_JS)
+                    .with_header(
+                        Header::from_bytes("Content-Type", "application/javascript").unwrap(),
+                    )
+                    .with_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
+                let _ = request.respond(response);
+                continue;
+            }
+            if method == Method::Get && url == "/epec/epec.css" {
+                let response = Response::from_string(EPEC_CSS)
+                    .with_header(Header::from_bytes("Content-Type", "text/css").unwrap())
+                    .with_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
+                let _ = request.respond(response);
+                continue;
+            }
+            // ── EPEC Globals API: GET /api/epec/globals ───────────────────
+            if method == Method::Get && url == "/api/epec/globals" {
+                let payload = epec_globals_snapshot(&control_state);
+                let body = payload.to_string();
+                let response = Response::from_string(body).with_header(
+                    Header::from_bytes("Content-Type", "application/json").unwrap(),
+                );
+                let _ = request.respond(response);
+                continue;
+            }
+            // ── EPEC Globals API: POST /api/epec/globals ──────────────────
+            if method == Method::Post && url == "/api/epec/globals" {
+                let mut body = String::new();
+                if request.as_reader().read_to_string(&mut body).is_err() {
+                    let response = Response::from_string(
+                        json!({ "ok": false, "error": "invalid body" }).to_string(),
+                    )
+                    .with_status_code(StatusCode(400))
+                    .with_header(Header::from_bytes("Content-Type", "application/json").unwrap());
+                    let _ = request.respond(response);
+                    continue;
+                }
+                let payload: EpecWriteRequest = match serde_json::from_str(&body) {
+                    Ok(v) => v,
+                    Err(_) => {
+                        let response = Response::from_string(
+                            json!({ "ok": false, "error": "invalid json" }).to_string(),
+                        )
+                        .with_status_code(StatusCode(400))
+                        .with_header(
+                            Header::from_bytes("Content-Type", "application/json").unwrap(),
+                        );
+                        let _ = request.respond(response);
+                        continue;
+                    }
+                };
+                let name = payload.name.trim();
+                if name.is_empty() {
+                    let response = Response::from_string(
+                        json!({ "ok": false, "error": "name is required" }).to_string(),
+                    )
+                    .with_status_code(StatusCode(400))
+                    .with_header(Header::from_bytes("Content-Type", "application/json").unwrap());
+                    let _ = request.respond(response);
+                    continue;
+                }
+                match epec_parse_write_value(&payload.value) {
+                    Some(value) => {
+                        control_state
+                            .debug
+                            .enqueue_global_write(smol_str::SmolStr::new(name), value);
+                        let response = Response::from_string(
+                            json!({ "ok": true, "status": "queued", "name": name }).to_string(),
+                        )
+                        .with_header(
+                            Header::from_bytes("Content-Type", "application/json").unwrap(),
+                        );
+                        let _ = request.respond(response);
+                    }
+                    None => {
+                        let response = Response::from_string(
+                            json!({ "ok": false, "error": "unsupported value type" }).to_string(),
+                        )
+                        .with_status_code(StatusCode(400))
+                        .with_header(
+                            Header::from_bytes("Content-Type", "application/json").unwrap(),
+                        );
+                        let _ = request.respond(response);
+                    }
+                }
+                continue;
+            }
+            // ── EPEC Globals SSE: GET /api/epec/events ────────────────────
+            if method == Method::Get && url == "/api/epec/events" {
+                let cs = control_state.clone();
+                let (pipe_tx, pipe_rx) = std::sync::mpsc::sync_channel::<String>(8);
+                thread::spawn(move || {
+                    loop {
+                        let payload = epec_globals_snapshot(&cs);
+                        let msg = format!("data: {}\n\n", payload);
+                        if pipe_tx.send(msg).is_err() {
+                            break;
+                        }
+                        thread::sleep(std::time::Duration::from_millis(500));
+                    }
+                });
+                let reader = SseChannelReader {
+                    rx: pipe_rx,
+                    pending: Vec::new(),
+                    pos: 0,
+                };
+                let sse_response = Response::new(
+                    StatusCode(200),
+                    vec![
+                        Header::from_bytes("Content-Type", "text/event-stream").unwrap(),
+                        Header::from_bytes("Cache-Control", "no-cache").unwrap(),
+                        Header::from_bytes("X-Accel-Buffering", "no").unwrap(),
+                    ],
+                    reader,
+                    None,
+                    None,
+                );
+                let _ = request.respond(sse_response);
                 continue;
             }
             let response = Response::from_string("not found").with_status_code(StatusCode(404));
