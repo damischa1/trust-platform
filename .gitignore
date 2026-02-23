@@ -21,6 +21,7 @@ editors/vscode/.vscode-test/
 editors/vscode/target/
 crates/trust-runtime/web/ide-frontend/node_modules/
 crates/trust-runtime/web/epec-globals-frontend/node_modules/
+crates/trust-runtime/web/epec-globals-frontend/dist/
 
 # Local tooling caches
 .claude/

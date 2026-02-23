@@ -269,9 +269,6 @@ const HMI_CSS: &str = include_str!("web/ui/hmi.css");
 const IDE_HTML: &str = include_str!("web/ui/ide.html");
 const IDE_CSS: &str = include_str!("web/ui/ide.css");
 const IDE_JS: &str = include_str!("web/ui/ide.js");
-const EPEC_HTML: &str = include_str!("web/ui/epec.html");
-const EPEC_JS: &str = include_str!("web/ui/epec.js");
-const EPEC_CSS: &str = include_str!("web/ui/epec.css");
 const IDE_MONACO_BUNDLE_JS: &str = include_str!("web/ui/assets/ide-monaco.20260215.js");
 const IDE_MONACO_BUNDLE_CSS: &str = include_str!("web/ui/assets/ide-monaco.20260215.css");
 const IDE_LOGO_SVG: &str = include_str!("web/ui/assets/logo.svg");
@@ -3030,30 +3027,6 @@ pub fn start_web_server(
                 let body = serde_json::to_string(&response).unwrap_or_else(|_| "{}".into());
                 let response = Response::from_string(body)
                     .with_header(Header::from_bytes("Content-Type", "application/json").unwrap());
-                let _ = request.respond(response);
-                continue;
-            }
-            // ── EPEC Globals UI ────────────────────────────────────────────
-            if method == Method::Get && (url == "/epec" || url == "/epec/") {
-                let response = Response::from_string(EPEC_HTML)
-                    .with_header(Header::from_bytes("Content-Type", "text/html").unwrap())
-                    .with_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
-                let _ = request.respond(response);
-                continue;
-            }
-            if method == Method::Get && url == "/epec/epec.js" {
-                let response = Response::from_string(EPEC_JS)
-                    .with_header(
-                        Header::from_bytes("Content-Type", "application/javascript").unwrap(),
-                    )
-                    .with_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
-                let _ = request.respond(response);
-                continue;
-            }
-            if method == Method::Get && url == "/epec/epec.css" {
-                let response = Response::from_string(EPEC_CSS)
-                    .with_header(Header::from_bytes("Content-Type", "text/css").unwrap())
-                    .with_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
                 let _ = request.respond(response);
                 continue;
             }

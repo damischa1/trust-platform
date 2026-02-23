@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 
+// In dev, Vite proxies /api/epec → trust-runtime.
+// In production, set VITE_RUNTIME_BASE to the runtime origin (e.g. http://plc:8080).
+const API_BASE = (import.meta.env.VITE_RUNTIME_BASE ?? '') as string;
+
 interface Global {
   name: string;
   value: string;
@@ -27,7 +31,7 @@ export default function App() {
 
   useEffect(() => {
     // Initial fetch
-    fetch('/api/epec/globals')
+    fetch(`${API_BASE}/api/epec/globals`)
       .then((r) => r.json())
       .then((data: GlobalsPayload) => {
         setGlobals(data.globals ?? []);
@@ -36,7 +40,7 @@ export default function App() {
       .catch(() => setConnected(false));
 
     // SSE stream
-    const es = new EventSource('/api/epec/events');
+    const es = new EventSource(`${API_BASE}/api/epec/events`);
     esRef.current = es;
     es.onmessage = (event) => {
       try {
@@ -60,7 +64,7 @@ export default function App() {
     if (!writeTarget.trim()) return;
     setWriteStatus(null);
     try {
-      const res = await fetch('/api/epec/globals', {
+      const res = await fetch(`${API_BASE}/api/epec/globals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: writeTarget, value: writeValue }),
