@@ -1280,7 +1280,7 @@ fn hmi_event_matches_descriptor(event: &Event, project_root: &Path) -> bool {
     })
 }
 
-fn load_runtime_snapshot(state: &ControlState) -> Option<crate::debug::DebugSnapshot> {
+pub(crate) fn load_runtime_snapshot(state: &ControlState) -> Option<crate::debug::DebugSnapshot> {
     let (tx, rx) = std::sync::mpsc::channel();
     let request = ResourceCommand::Snapshot { respond_to: tx };
     if state.resource.send_command(request).is_ok() {

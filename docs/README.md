@@ -4,6 +4,13 @@ This directory contains specifications, guides, and diagrams for truST LSP.
 
 For quick start and runtime inline values, see the root `README.md`.
 
+## Runtime Execution Model
+
+How the built-in event loop works, cycle phases, task scheduling, and why you never write a
+loop in ST code:
+
+`docs/guides/RUNTIME_EXECUTION_MODEL.md`
+
 ## Reports
 
 Durable engineering reports and gate baselines are in `docs/reports/`.
