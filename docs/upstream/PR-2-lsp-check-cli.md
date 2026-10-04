@@ -1,4 +1,4 @@
-<!-- PR draft. Branch: damischa1/trust-platform feat/lsp-check-cli -> johannesPettersson80/trust-platform main -->
+<!-- Opened as https://github.com/johannesPettersson80/trust-platform/pull/122 (4.10.2026) -->
 
 # feat(lsp): `trust-lsp check`, editor diagnostics from the command line
 
@@ -43,6 +43,12 @@ The existing ways to get project diagnostics outside an editor do not quite fit 
   `2` on usage or I/O problems.
 - Logging is reduced to warnings for this subcommand. The silent client's dropped
   notifications are not logged.
+
+## Scope
+
+This is command-line only and does not change the server's behavior. Editor
+performance is handled separately (perf PR: whole-project rescans). It also helps this
+command, since `check` analyzes every file.
 
 ## Implementation
 
