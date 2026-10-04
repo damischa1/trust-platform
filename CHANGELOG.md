@@ -35,6 +35,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
   mismatch" (globals) or "init failed for P.a: type mismatch", function locals read as
   zero, and an indexed call was rejected as an "unsupported CALL_NATIVE target
   expression". Initializers of such arrays (`[50(PT := T#100ms)]`) are still rejected.
+- Vendor-extension conversions used by CODESYS and TwinCAT projects compile and run
+  (docs/specs/07-standard-functions.md 2.6): `REAL/LREAL_TO_BYTE/WORD/LWORD`,
+  `LREAL_TO_DWORD` (numeric, like `REAL_TO_<unsigned>` of the width), `<number or bit
+  string>_TO_BOOL` and `TO_BOOL` (value <> 0), `BOOL_TO_REAL/LREAL`. They were rejected with
+  "cannot convert 'REAL' to 'BYTE'". The IEC conversions are unchanged.
 - Specify runtime clock dispatch name/error identity and deterministic LSP
   diagnostic-override collision precedence, including canonical-key priority
   and alias-only lexical ordering.
