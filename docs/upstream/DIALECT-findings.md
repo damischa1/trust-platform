@@ -1,5 +1,11 @@
 # CODESYS sources in truST: what to propose upstream
 
+Status 4 Oct 2026: A1 = PR #123, A2 = PR #124, runtime CASE ranges on unsigned/bit-string
+selectors (found while testing A1) = PR #125. A3 not proposed: truST models CTU/CTD/CTUD as
+IEC overloaded FBs whose CV takes PV's type at runtime, so `c.CV` is genuinely ANY_INT
+statically; accepting it would only move the error to a runtime TypeMismatch (design
+question, issue at most). A4 not proposed: IEC requires the decimal point.
+
 Source: the workarounds in damischa1/codesys23-tools (`internal/stcheck/dialect.go`,
 `cds23.go`, `text.go`, `names.go`), each reproduced against the released trust-lsp
 v0.24.69 with the probes in `probes/` (`python3 probes/lspdiag.py <trust-lsp> probes <file>`
