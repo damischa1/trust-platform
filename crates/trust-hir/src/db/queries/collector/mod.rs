@@ -74,15 +74,6 @@ impl<'a> SymbolCollector<'a> {
         collector.const_exprs
     }
 
-    pub(crate) fn collect_for_project_with_const_roots(
-        self,
-        root: &SyntaxNode,
-        const_roots: &[SyntaxNode],
-    ) -> (SymbolTable, Vec<Diagnostic>, Vec<PendingType>) {
-        let consts = Self::project_const_exprs(const_roots);
-        self.collect_for_project_with_consts(root, &consts)
-    }
-
     pub(crate) fn collect_for_project_with_consts(
         mut self,
         root: &SyntaxNode,
@@ -94,15 +85,6 @@ impl<'a> SymbolCollector<'a> {
         self.phase_constants();
         let pending_types = std::mem::take(&mut self.pending_types);
         (self.table, self.diagnostics.finish(), pending_types)
-    }
-
-    pub(crate) fn collect_with_project_const_roots(
-        self,
-        root: &SyntaxNode,
-        const_roots: &[SyntaxNode],
-    ) -> (SymbolTable, Vec<Diagnostic>) {
-        let consts = Self::project_const_exprs(const_roots);
-        self.collect_with_project_consts(root, &consts)
     }
 
     pub(crate) fn collect_with_project_consts(
