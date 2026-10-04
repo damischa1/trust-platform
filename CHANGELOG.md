@@ -6,6 +6,9 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ## [Unreleased]
 
+- Harness global and static default-value errors name the variable
+  (`default value error for 'G.ODEntrys': type mismatch`); the message had no
+  position or name to find the declaration by.
 - Specify runtime clock dispatch name/error identity and deterministic LSP
   diagnostic-override collision precedence, including canonical-key priority
   and alias-only lexical ordering.
