@@ -1,0 +1,3 @@
+[project]
+vendor_profile = "codesys"
+include_paths = ["src"]

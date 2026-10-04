@@ -1,0 +1,6 @@
+FUNCTION_BLOCK T05
+VAR dw : DWORD; b : BYTE; END_VAR
+dw := dw AND 1;
+IF dw = 0 THEN b := 1; END_IF
+IF b <> 0 THEN b := b OR 16#80; END_IF
+END_FUNCTION_BLOCK
