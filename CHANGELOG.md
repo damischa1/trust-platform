@@ -16,6 +16,10 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
   at a declaration in the file itself, or else at the first reference to the name
   in that file. They were reported in every project file at the offset of the
   declaring file, so one duplicate showed up once per file at unrelated text.
+- Runtime CASE ranges (`1..5:`) match unsigned integer and bit-string selectors.
+  Range bounds were compared as `LINT`, so a `USINT`, `UDINT`, `BYTE` or `WORD`
+  selector aborted the cycle with `TypeMismatch` (bytecode VM) or
+  `CaseSelectorType` (interpreter). Bounds are now constants of the selector type.
 - Specify runtime clock dispatch name/error identity and deterministic LSP
   diagnostic-override collision precedence, including canonical-key priority
   and alias-only lexical ordering.
