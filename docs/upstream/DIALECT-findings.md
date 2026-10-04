@@ -15,7 +15,7 @@ pulls diagnostics like the editor, without didOpen). 4 Oct 2026.
    while `b : BYTE := 255` in a declaration is accepted. IEC_DECISIONS.md says representable
    untyped literals may initialize *or assign* to the target and are contextualized to the
    other operand. Assignment, comparison and bit operators skip that for ANY_BIT targets.
-   Biggest single source of false errors in CODESYS code (thousands in the Epec corpus).
+   Likely the most common false error in CODESYS code (corpus count not measured yet).
 2. **Cross-file E104 leaks into every file** (`t07_type_var_same.st` + any other file).
    A duplicate declaration in one file is also reported in *every other* file as
    `duplicate imported declaration of 'J1939'`, at a position that does not exist there
@@ -62,7 +62,7 @@ c23 rules.
 
 1. Issue + PR for A1 (literal contextualization for ANY_BIT): small, cites their own
    decision record, largest effect.
-2. Issue + PR for A2 (E104 leaking into other files): clear bug, likely in the
+2. Issue + PR for A2 (E104 leaking into other files): clear bug, possibly in the
    imported-symbol diagnostics of `merge_project_symbols`, overlaps with #121.
 3. Issue for A3 (counter types) with PR.
 4. One discussion issue "CODESYS profile semantics" listing B5–B10 with c23's corpus
