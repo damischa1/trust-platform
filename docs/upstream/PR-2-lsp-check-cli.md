@@ -60,7 +60,7 @@ The existing ways to get project diagnostics outside an editor do not quite fit 
 - `cargo test -p trust-lsp` (454 tests) and clippy `--all-targets -D warnings`: clean.
 - **Same results as an editor:** on a 130-file project, the set of diagnostics equals
   pulling every file over LSP (340 diagnostics). Takes 0.8 s, against 1.8 s over LSP.
-- Used in production by a CODESYS 2.3/3.5 checker (72-project corpus, identical results
-  to the LSP path).
+- Used by an external CODESYS 2.3/3.5 checker on a 72-project corpus, with results
+  identical to its LSP path.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

@@ -13,7 +13,8 @@ diagnostics get about 2x faster; results are unchanged.
 
 `scripts/perf/project_scaling.py` (added here) generates projects of N files (per file a
 struct, a GVL, a function and a function block that calls into the previous file) and
-pulls every file's diagnostics over LSP:
+pulls every file's diagnostics over LSP (x86_64 Linux; v0.24.69 is the release build
+with LTO, this PR was built without LTO, so the speedup is if anything understated):
 
 | files | v0.24.69 | this PR | per file (before → after) |
 |------:|---------:|--------:|--------------------------:|
