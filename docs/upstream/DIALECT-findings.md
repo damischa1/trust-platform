@@ -90,7 +90,8 @@ Fixed on fork branches (merged into `integration`, upstream PR only on request):
 
 Not fixed (c23 works around them):
 
-1. **Arrays of function block instances do not initialize**: `VAR_GLOBAL a : ARRAY[1..3]
+1. **Arrays of function block instances do not initialize** (fixed: PR #126,
+   `fix/fb-instance-arrays`, merged into `integration`): `VAR_GLOBAL a : ARRAY[1..3]
    OF Fb; END_VAR` → "default value error for 'a': type mismatch"; in a PROGRAM → "init
    failed for P.a: type mismatch". An array of structures works. Common in CODESYS code
    (CANopen OD entries, parameter tables). Bug by truST's own rules (A).
