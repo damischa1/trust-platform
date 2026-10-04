@@ -12,6 +12,10 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
   were for integer targets and bit-string initializers. `BOOL` stays strict.
   Runtime CASE labels are evaluated in the selector type, so an untyped label
   matches a bit-string selector.
+- Project-import name collisions (`duplicate imported declaration`) are reported
+  at a declaration in the file itself, or else at the first reference to the name
+  in that file. They were reported in every project file at the offset of the
+  declaring file, so one duplicate showed up once per file at unrelated text.
 - Specify runtime clock dispatch name/error identity and deterministic LSP
   diagnostic-override collision precedence, including canonical-key priority
   and alias-only lexical ordering.
