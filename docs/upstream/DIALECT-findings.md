@@ -73,3 +73,48 @@ c23 rules.
 3. Issue for A3 (counter types) with PR.
 4. One discussion issue "CODESYS profile semantics" listing B5–B10 with c23's corpus
    numbers; implement only what the maintainer accepts. Wait for #121/#122 first.
+
+## C. Runtime (trust-harness) findings from the c23 visualization simulator (4 Oct 2026)
+
+c23 `visu sim` runs CODESYS V3.5 display projects (Epec) in trust-harness. Probes were
+loaded through the harness protocol (`{"cmd":"load","sources":[...]}`).
+
+Fixed on fork branches (merged into `integration`, upstream PR only on request):
+
+- `fix/wide-untyped-integer-literals`: an untyped integer literal beyond DINT
+  (`color : DWORD := 16#FF4F4F4F`, `UDINT := 4283387727`) failed the runtime compile
+  with "integer literal out of range" and no position (the LSP accepts it). Lowered as
+  LINT and narrowed by the expected type; test `wide_untyped_integer_literals.rs`.
+- `fix/default-value-error-name`: "default value error: type mismatch" now names the
+  variable; it had neither position nor name.
+
+Not fixed (c23 works around them):
+
+1. **Arrays of function block instances do not initialize**: `VAR_GLOBAL a : ARRAY[1..3]
+   OF Fb; END_VAR` → "default value error for 'a': type mismatch"; in a PROGRAM → "init
+   failed for P.a: type mismatch". An array of structures works. Common in CODESYS code
+   (CANopen OD entries, parameter tables). Bug by truST's own rules (A).
+2. **Runtime faults have no location**: `runtime_cycle_error` gives
+   `["null reference dereference"]` / `["arithmetic overflow"]` without POU or statement,
+   although the debugger has statement locations (`statement_index`). c23 finds the code
+   by blanking bodies one by one. Bug-ish (A); a location in `RuntimeError` reports
+   would help every harness user.
+3. **Integer overflow faults the cycle** (spec 10: never wraps); CODESYS wraps. `k := k +
+   32767` with `k : INT := 2` stops the program. Dialect (B).
+4. **Conversions IEC lacks or defines differently** (B): `REAL_TO_BYTE/WORD/LWORD/BOOL`,
+   `LREAL_TO_BYTE/WORD/DWORD/BOOL`, `INT/DINT/UINT_TO_BOOL` → E205 "cannot convert";
+   `REAL_TO_DWORD(3.7)` = 1080872141 (bit copy, IEC binary transfer), CODESYS gives 4;
+   `REAL_TO_INT(2.5)` = 2 and `REAL_TO_DINT(-2.5)` = -2 (half to even; CODESYS not yet
+   compared).
+5. **Implicit numeric conversions** are errors in the runtime compile (E203 `cannot
+   assign 'BYTE' to 'INT'`, widening); CODESYS converts. The LSP with
+   `warn_implicit_conversion` reports the same category.
+6. **FB `VAR` is PROTECTED** (E202 "cannot access PROTECTED member"): CODESYS lets the
+   visualization and other POUs read and write instance variables
+   (`DisplayController.Valve := 0`, PROGRAM locals included). `VAR PUBLIC` works.
+7. **Assigning one's own VAR_INPUT** inside the POU is E301; CODESYS allows it.
+8. **Located variables**: `%MX2.8` (bit > 7 in CODESYS word-oriented flag addressing) is
+   "invalid I/O address" without position; located `%M` variables are refreshed from the
+   I/O image every cycle, so `set_input` on them does not stay.
+9. **Untyped REAL literal to a REAL parameter**: `REAL_TO_INT(2.5)` → E205 "expected 'REAL'
+   for parameter 'IN'" (the literal is LREAL).
