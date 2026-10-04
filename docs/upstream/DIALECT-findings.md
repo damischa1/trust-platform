@@ -102,7 +102,8 @@ Not fixed (c23 works around them):
    would help every harness user.
 3. **Integer overflow faults the cycle** (spec 10: never wraps); CODESYS wraps. `k := k +
    32767` with `k : INT := 2` stops the program. Dialect (B).
-4. **Conversions IEC lacks or defines differently** (B): `REAL_TO_BYTE/WORD/LWORD/BOOL`,
+4. **Conversions IEC lacks or defines differently** (PR #127 vendor extensions, PR #128
+   `vendor_profile = "codesys"` conversion profile; both merged into `integration`) (B): `REAL_TO_BYTE/WORD/LWORD/BOOL`,
    `LREAL_TO_BYTE/WORD/DWORD/BOOL`, `INT/DINT/UINT_TO_BOOL` → E205 "cannot convert";
    `REAL_TO_DWORD(3.7)` = 1080872141 (bit copy, IEC binary transfer), CODESYS gives 4;
    `REAL_TO_INT(2.5)` = 2 and `REAL_TO_DINT(-2.5)` = -2 (half to even; CODESYS not yet
