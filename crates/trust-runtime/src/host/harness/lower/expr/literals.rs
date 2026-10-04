@@ -85,9 +85,11 @@ fn lower_literal_with_context(
         if has_typed_prefix {
             Value::LInt(value)
         } else {
-            let value = i32::try_from(value)
-                .map_err(|_| CompileError::new("integer literal out of range"))?;
-            Value::DInt(value)
+            // DINT when it fits, else LINT; the expected type (DWORD, UDINT ...) narrows it
+            match i32::try_from(value) {
+                Ok(value) => Value::DInt(value),
+                Err(_) => Value::LInt(value),
+            }
         }
     } else if ident_literal.is_some() {
         Value::Null
