@@ -10,6 +10,9 @@ mod validation;
 mod variable_initializers;
 mod variables;
 
+/// Constant expressions by (scope, name), see `SymbolCollector::project_const_exprs`.
+pub(crate) type ProjectConstExprs = FxHashMap<(Option<SmolStr>, SmolStr), SyntaxNode>;
+
 pub(super) struct SymbolCollector<'a> {
     table: SymbolTable,
     diagnostics: DiagnosticBuilder,
@@ -58,14 +61,34 @@ impl<'a> SymbolCollector<'a> {
         (self.table, self.diagnostics.finish())
     }
 
+    /// Constant declarations (`VAR_GLOBAL CONSTANT`, ...) of the given roots, first
+    /// declaration of a key wins. Walking every project root is the expensive part of
+    /// constant precollection, so callers that collect many files of one project
+    /// compute this once and pass it to `collect_with_project_consts` /
+    /// `collect_for_project_with_consts`.
+    pub(crate) fn project_const_exprs(const_roots: &[SyntaxNode]) -> ProjectConstExprs {
+        let mut collector = Self::build(None);
+        for project_root in const_roots {
+            collector.precollect_constants(project_root, &[], &[]);
+        }
+        collector.const_exprs
+    }
+
     pub(crate) fn collect_for_project_with_const_roots(
-        mut self,
+        self,
         root: &SyntaxNode,
         const_roots: &[SyntaxNode],
     ) -> (SymbolTable, Vec<Diagnostic>, Vec<PendingType>) {
-        for project_root in const_roots {
-            self.precollect_constants(project_root, &[], &[]);
-        }
+        let consts = Self::project_const_exprs(const_roots);
+        self.collect_for_project_with_consts(root, &consts)
+    }
+
+    pub(crate) fn collect_for_project_with_consts(
+        mut self,
+        root: &SyntaxNode,
+        consts: &ProjectConstExprs,
+    ) -> (SymbolTable, Vec<Diagnostic>, Vec<PendingType>) {
+        self.seed_const_exprs(consts);
         self.phase_precollect(root);
         self.phase_collect_symbols(root);
         self.phase_constants();
@@ -74,14 +97,30 @@ impl<'a> SymbolCollector<'a> {
     }
 
     pub(crate) fn collect_with_project_const_roots(
-        mut self,
+        self,
         root: &SyntaxNode,
         const_roots: &[SyntaxNode],
     ) -> (SymbolTable, Vec<Diagnostic>) {
-        for project_root in const_roots {
-            self.precollect_constants(project_root, &[], &[]);
-        }
+        let consts = Self::project_const_exprs(const_roots);
+        self.collect_with_project_consts(root, &consts)
+    }
+
+    pub(crate) fn collect_with_project_consts(
+        mut self,
+        root: &SyntaxNode,
+        consts: &ProjectConstExprs,
+    ) -> (SymbolTable, Vec<Diagnostic>) {
+        self.seed_const_exprs(consts);
         self.collect(root)
+    }
+
+    fn seed_const_exprs(&mut self, consts: &ProjectConstExprs) {
+        // Same as precollecting the project roots first: earlier entries win.
+        for (key, expr) in consts {
+            self.const_exprs
+                .entry(key.clone())
+                .or_insert_with(|| expr.clone());
+        }
     }
 
     pub(crate) fn validate_project_after_merge(

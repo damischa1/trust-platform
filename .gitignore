@@ -169,3 +169,4 @@ conformance/reports/*
 !conformance/reports/.gitkeep
 AGENTS.md
 CLAUDE.md
+/target-fast
