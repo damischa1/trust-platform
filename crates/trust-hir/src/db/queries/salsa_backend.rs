@@ -609,6 +609,9 @@ fn collect_project_state(
     })
 }
 
+/// A project constant declaration: (key, file, kind and range of its expression).
+pub(super) type ProjectConstEntry = ((Option<SmolStr>, SmolStr), FileId, SyntaxKind, TextRange);
+
 /// Where the project's constant declarations are: (key, file, kind and range of the
 /// expression), first declaration in file-id order wins (the order `analyze_query` used
 /// when it precollected all project roots itself). Positions, not syntax nodes, because
@@ -617,8 +620,8 @@ fn collect_project_state(
 pub(super) fn project_const_index_query(
     db: &dyn salsa::Database,
     project: ProjectInputs,
-) -> Arc<Vec<((Option<SmolStr>, SmolStr), FileId, SyntaxKind, TextRange)>> {
-    let mut ordered: Vec<(FileId, SourceInput)> = project.files(db).iter().copied().collect();
+) -> Arc<Vec<ProjectConstEntry>> {
+    let mut ordered: Vec<(FileId, SourceInput)> = project.files(db).to_vec();
     ordered.sort_by_key(|(id, _)| id.0);
     let mut seen: FxHashSet<(Option<SmolStr>, SmolStr)> = FxHashSet::default();
     let mut index = Vec::new();
@@ -647,7 +650,7 @@ fn project_roots_by_file(
 }
 
 fn project_const_exprs_for(
-    index: &[((Option<SmolStr>, SmolStr), FileId, SyntaxKind, TextRange)],
+    index: &[ProjectConstEntry],
     roots: &FxHashMap<FileId, SyntaxNode>,
 ) -> super::collector::ProjectConstExprs {
     let mut consts = super::collector::ProjectConstExprs::default();
