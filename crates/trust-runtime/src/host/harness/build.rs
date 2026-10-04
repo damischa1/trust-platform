@@ -584,7 +584,7 @@ fn init_function_static_locals(runtime: &mut Runtime) -> Result<(), CompileError
                 &stdlib,
                 local.type_id,
             )
-            .map_err(|err| CompileError::new(format!("default value error: {err}")))?;
+            .map_err(|err| CompileError::new(format!("default value error for '{key}': {err}")))?;
             storage.set_global(key, value);
         }
     }

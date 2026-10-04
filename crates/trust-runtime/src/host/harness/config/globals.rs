@@ -85,7 +85,9 @@ pub(super) fn apply_globals(
                 &stdlib,
                 init.type_id,
             )
-            .map_err(|err| CompileError::new(format!("default value error: {err}")))?;
+            .map_err(|err| {
+                CompileError::new(format!("default value error for '{}': {err}", init.name))
+            })?;
             storage.set_global(init.name.clone(), value);
         }
 

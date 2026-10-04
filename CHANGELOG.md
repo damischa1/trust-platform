@@ -23,6 +23,9 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Untyped integer literals beyond the DINT range (`DWORD := 16#FF4F4F4F`,
   `UDINT := 4283387727`) no longer fail the runtime compile with "integer literal
   out of range"; they lower as LINT and are narrowed by the expected type.
+- Harness global and static default-value errors name the variable
+  (`default value error for 'G.ODEntrys': type mismatch`); the message had no
+  position or name to find the declaration by.
 - Specify runtime clock dispatch name/error identity and deterministic LSP
   diagnostic-override collision precedence, including canonical-key priority
   and alias-only lexical ordering.
