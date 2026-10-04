@@ -20,6 +20,9 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
   Range bounds were compared as `LINT`, so a `USINT`, `UDINT`, `BYTE` or `WORD`
   selector aborted the cycle with `TypeMismatch` (bytecode VM) or
   `CaseSelectorType` (interpreter). Bounds are now constants of the selector type.
+- Untyped integer literals beyond the DINT range (`DWORD := 16#FF4F4F4F`,
+  `UDINT := 4283387727`) no longer fail the runtime compile with "integer literal
+  out of range"; they lower as LINT and are narrowed by the expected type.
 - Specify runtime clock dispatch name/error identity and deterministic LSP
   diagnostic-override collision precedence, including canonical-key priority
   and alias-only lexical ordering.
